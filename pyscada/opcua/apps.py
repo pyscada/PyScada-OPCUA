@@ -10,6 +10,7 @@ class PyScadaOPCUAConfig(AppConfig):
     name = 'pyscada.opcua'
     verbose_name = _("PyScada OPC-UA")
     path = os.path.dirname(os.path.realpath(__file__))
+    default_auto_field = 'django.db.models.AutoField'
 
     def ready(self):
         import pyscada.opcua.signals

@@ -8,7 +8,6 @@ from . import PROTOCOL_ID
 import asyncua
 
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 from django.forms.models import BaseInlineFormSet
 from django import forms
 
@@ -17,7 +16,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@python_2_unicode_compatible
 class OPCUADevice(models.Model):
     opcua_device = models.OneToOneField(Device, null=True, blank=True, on_delete=models.CASCADE)
     protocol_choices = ((0, 'tcp'),)
@@ -52,7 +50,6 @@ class OPCUADevice(models.Model):
             form.fields['remote_devices_objects'].disabled = True
 
 
-@python_2_unicode_compatible
 class OPCUAVariable(models.Model):
     opcua_variable = models.OneToOneField(Variable, null=True, blank=True, on_delete=models.CASCADE)
     NamespaceIndex = models.PositiveSmallIntegerField(default=0, help_text='"ns" value used in asyncua library')
@@ -64,7 +61,6 @@ class OPCUAVariable(models.Model):
         return self.id.__str__() + "-" + self.opcua_variable.name
 
 
-@python_2_unicode_compatible
 class OPCUAMethodArgument(models.Model):
     opcua_method = models.ForeignKey(OPCUAVariable, null=True, blank=True, on_delete=models.CASCADE)
     position = models.PositiveSmallIntegerField(default=0, help_text='Position in call method')
