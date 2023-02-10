@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from .. import PROTOCOL_ID
+from pyscada.device import GenericHandlerDevice
 from pyscada.models import DeviceProtocol, Variable
 from pyscada.opcua.models import OPCUADevice
 
@@ -28,30 +29,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class GenericDevice:
+class GenericDevice(GenericHandlerDevice):
     def __init__(self, pyscada_device, variables):
-        self._device = pyscada_device
-        self._variables = variables
-        self.inst = None
-        self.rm = None
+        super().__init__(pyscada_device, variables)
+        self._protocol = PROTOCOL_ID
+        self.driver_ok = driver_ok
         self.is_connected = 0
 
     def connect(self):
+        super().connect()
         return async_to_sync(self._connect)()
 
     async def _connect(self):
         """
         establish a connection to the Instrument
         """
-        if not driver_ok:
-            logger.error("Cannot import asyncua")
-            return False
-
-        if self._device.protocol.id != PROTOCOL_ID:
-            logger.error("Wrong handler selected : it's for %s device while device protocol is %s" %
-                         (str(DeviceProtocol.objects.get(id=PROTOCOL_ID)).upper(),
-                          str(self._device.protocol).upper()))
-            return False
+        result = True
 
         url = "opc."
         url += str(self._device.opcuadevice.protocol_choices[self._device.opcuadevice.protocol][1])
@@ -67,17 +60,17 @@ class GenericDevice:
 
         try:
             await self.inst.connect()
-            self.is_connected = 1
-            logger.error("OPC-UA device : %s is now accessible" % str(self._device))
+            self.accessibility()
         except (TimeoutError, asyncioTimeoutError):
-            if self.is_connected == 0:
+            result = False
+            if self._device_not_accessible > -1:
                 logger.warning("Timeout connecting to %s" % self._device)
         except OSError:
-            if self.is_connected == 0:
+            result = False
+            if self._device_not_accessible > -1:
                 logger.warning("Connect call to %s failed" % self._device)
 
-        #logger.debug(self.inst.__dict__)
-        if self.is_connected > 0:
+        if self._device_not_accessible > 0:
             tree = []
             await self.browse_nodes(self.inst.nodes.objects, tree)
             await self.browse_nodes(self.inst.nodes.types, tree)
@@ -92,14 +85,7 @@ class GenericDevice:
             #logger.debug(self._device.opcuadevice.remote_devices_objects)
             OPCUADevice.objects.bulk_update([self._device.opcuadevice], ['remote_devices_objects'])
 
-            #except Exception as e:
-            #    logger.debug(e)
-            #    return False
-
-            #logger.debug('Connected to OPCUA device : %s' % self._device.opcuadevice.__str__())
-            return True
-
-        return False
+        return result
 
     def disconnect(self):
         if self.inst is not None:
@@ -109,27 +95,15 @@ class GenericDevice:
         return False
 
     async def _disconnect(self):
-        if self.is_connected > 0:
+        if self._device_not_accessible > 0:
             await self.inst.disconnect()
-            self.is_connected = 0
-
-    def before_read(self):
-        """
-        will be called before the first read_data
-        """
-        return None
-
-    def after_read(self):
-        """
-        will be called after the last read_data
-        """
-        return None
+            self._device_not_accessible = 0
 
     def read_data(self, variable):
         return async_to_sync(self._read_data)(variable)
 
     async def _read_data(self, variable):
-        if self.is_connected < 1:
+        if self._device_not_accessible < 1:
             return None
         ns_i = "ns="
         ns_i += str(variable.opcuavariable.NamespaceIndex)
@@ -151,34 +125,21 @@ class GenericDevice:
     def read_all_data(self, variables):
         return async_to_sync(self._read_all_data)(variables)
 
-    async def _read_all_data(self, variables):
-        await self._connect()
-
-        if self.is_connected < 1:
-            self.is_connected -= 1
-        if self.is_connected == -1:  #
-            logger.error("OPC-UA device : %s is not accessible" % str(self._device))
-
+    async def _read_all_data(self, variables_dict):
         output = []
 
-        for variable in variables.values():
-            if hasattr(self, 'inst') and self.inst is not None:
-                value = await self._read_data(variable)
-            else:
-                value = None
+        if await self._connect():
+            self.accessibility()
+            self.before_read()
+            for item in variables_dict.values():
+                value, read_time = self.read_data_and_time(item)
 
-            if value is not None and variable.update_value(value, time()):
-                output.append(variable.create_recorded_data_element())
+                if value is not None and item.update_value(value, read_time):
+                    output.append(item.create_recorded_data_element())
+            self.after_read()
 
         await self._disconnect()
         return output
-
-    def read_data_and_time(self, variable_instance):
-        """
-        read values and timestamps from the device
-        """
-
-        return self.read_data(variable_instance), self.time()
 
     def write_data(self, variable_id, value, task):
         """
@@ -186,22 +147,21 @@ class GenericDevice:
         """
         return async_to_sync(self._write_data)(variable_id, value, task)
 
-        return False
-
     async def _write_data(self, variable_id, value, task):
+        result = None
 
-        await self._connect()
-        if self.is_connected < 1:
-            return None
+        if await self._connect():
+            self.accessibility()
 
-        variable = Variable.objects.get(id=variable_id)
-        ns_i = "ns="
-        ns_i += str(variable.opcuavariable.NamespaceIndex)
-        ns_i += ";i="
-        ns_i += str(variable.opcuavariable.Identifier)
+            variable = Variable.objects.get(id=variable_id)
+            ns_i = "ns="
+            ns_i += str(variable.opcuavariable.NamespaceIndex)
+            ns_i += ";i="
+            ns_i += str(variable.opcuavariable.Identifier)
 
-        result = await self._call_method(variable, ns_i, value)
-        await self._disconnect()
+            result = await self._call_method(variable, ns_i, value)
+            await self._disconnect()
+
         return result
 
     async def _call_method(self, variable, ns_i, value=None):
@@ -217,6 +177,7 @@ class GenericDevice:
                 return None
             args_values = []
             for i in range(0, len(inputs)):
+                val = None
                 if args[i].data_type == 0:
                     val = string_to_variant(str(args[i].value),
                                             await data_type_to_variant_type(Node(node.server, inputs[i].DataType)))
@@ -227,7 +188,8 @@ class GenericDevice:
                         val = string_to_variant(str(value), self.value_class_to_variant_type(variable.value_class))
                     except ValueError:
                         val = string_to_variant(str(int(value)), self.value_class_to_variant_type(variable.value_class))
-                args_values.append(val)
+                if val is not None:
+                    args_values.append(val)
             result = await call_method_full(await node.get_parent(), node, *args_values)
             if result.StatusCode.is_good():
                 if hasattr(result, 'OutputArguments') and len(result.OutputArguments):
@@ -243,9 +205,6 @@ class GenericDevice:
         except Exception as e:
             logger.info(e)
         return result
-
-    def time(self):
-        return time()
 
     async def browse_nodes(self, node: Node, tree):
         """

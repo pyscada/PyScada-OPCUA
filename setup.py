@@ -31,7 +31,7 @@ setup(
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,
     install_requires=[
-        'pyscada>=0.7.1rc1',
+        'pyscada>=0.7.1rc5',
         'asyncua',
         'django-nested-admin',
     ],

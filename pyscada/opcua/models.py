@@ -26,8 +26,6 @@ class OPCUADevice(models.Model):
     user = models.CharField(default='user', max_length=254)
     password = models.CharField(default='password', max_length=254)
 
-    instrument_handler = models.ForeignKey(DeviceHandler, blank=True, null=True, on_delete=models.SET_NULL)
-
     remote_devices_objects = models.CharField(default='', max_length=5000, blank=True, null=True,
                                               help_text='After creating a remote device, '
                                                         'refresh the page until you see the result')
