@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 from time import time, sleep
 from pyscada.device import GenericDevice
+from .devices import GenericDevice as GenericHandlerDevice
 
 import sys
 
@@ -24,6 +25,7 @@ class Device(GenericDevice):
 
     def __init__(self, device):
         self.driver_ok = driver_ok
+        self.handler_class = GenericHandlerDevice
         super().__init__(device)
 
         for var in self.device.variable_set.filter(active=1):
