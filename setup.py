@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 import os
-from pyscada import opcua
+from pyscada import opcua as pyscada_app
 
 
 CLASSIFIERS = [
@@ -11,7 +11,7 @@ CLASSIFIERS = [
     'Framework :: Django',
     'Intended Audience :: Developers',
     'Intended Audience :: Science/Research',
-    'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+    'License :: OSI Approved :: GNU Affero General Public License v3 (AGPLv3)',
     'Operating System :: POSIX',
     'Operating System :: MacOS :: MacOS X',
     'Programming Language :: Python',
@@ -20,18 +20,18 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering :: Visualization'
 ]
 setup(
-    author=opcua.__author__,
-    author_email="clavayssiere@univ-pau.fr",
-    name='pyscada-opcua',
-    version=opcua.__version__,
-    description='OPC-UA extension for PyScada a Python and Django based Open Source SCADA System',
+    author=pyscada_app.__author__,
+    author_email=pyscada_app.__email__,
+    name='pyscada-' + pyscada_app.__app_name__.lower(),
+    version=pyscada_app.__version__,
+    description=pyscada_app.__description__,
     long_description=open(os.path.join(os.path.dirname(__file__), 'README.rst')).read(),
-    url='http://www.github.com/clavay/PyScada-OPCUA',
-    license='GPL version 3',
+    url='http://www.github.com/pyscada/PyScada-' + pyscada_app.__app_name__,
+    license='AGPLv3',
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,
     install_requires=[
-        'pyscada>=0.7.1rc5',
+        'pyscada>=0.8.0',
         'asyncua',
         'django-nested-admin',
     ],
