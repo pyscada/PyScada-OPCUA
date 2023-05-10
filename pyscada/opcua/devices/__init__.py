@@ -60,15 +60,14 @@ class GenericDevice(GenericHandlerDevice):
 
         try:
             await self.inst.connect()
-            self.accessibility()
         except (TimeoutError, asyncioTimeoutError):
             result = False
-            if self._device_not_accessible > -1:
-                logger.warning("Timeout connecting to %s" % self._device)
+            self._not_accessible_reason = f"Timeout connecting to {self._device}"
+            await self._disconnect()
         except OSError:
             result = False
-            if self._device_not_accessible > -1:
-                logger.warning("Connect call to %s failed" % self._device)
+            self._not_accessible_reason = f"Connect call to {self._device} failed"
+            await self._disconnect()
 
         if self._device_not_accessible > 0:
             tree = []
@@ -85,19 +84,21 @@ class GenericDevice(GenericHandlerDevice):
             #logger.debug(self._device.opcuadevice.remote_devices_objects)
             OPCUADevice.objects.bulk_update([self._device.opcuadevice], ['remote_devices_objects'])
 
+        self.accessibility()
+
         return result
 
     def disconnect(self):
-        if self.inst is not None:
-            async_to_sync(self._disconnect)()
-            self.inst = None
-            return True
-        return False
+        return async_to_sync(self._disconnect)()
+
 
     async def _disconnect(self):
-        if self._device_not_accessible > 0:
+        result = False
+        if self.inst is not None and hasattr(self.inst, "disctonnect"):
             await self.inst.disconnect()
-            self._device_not_accessible = 0
+            result = True
+        self.inst = None
+        return result
 
     def read_data(self, variable):
         return async_to_sync(self._read_data)(variable)
