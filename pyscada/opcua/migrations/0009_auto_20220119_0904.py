@@ -4,27 +4,28 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pyscada', '0097_auto_20220118_1046'),
-        ('opcua', '0008_auto_20220118_1046'),
+        ("pyscada", "0097_auto_20220118_1046"),
+        ("opcua", "0008_auto_20220118_1046"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='OPCUAMethod',
-            fields=[
-            ],
+            name="OPCUAMethod",
+            fields=[],
             options={
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('pyscada.variable',),
+            bases=("pyscada.variable",),
         ),
         migrations.AlterField(
-            model_name='opcuamethodargument',
-            name='data_type',
-            field=models.PositiveSmallIntegerField(choices=[(0, 'Default'), (1, 'Use variable value class')], help_text='Default: use the DataType send by the device<br>Variable value class: use the value class defined above'),
+            model_name="opcuamethodargument",
+            name="data_type",
+            field=models.PositiveSmallIntegerField(
+                choices=[(0, "Default"), (1, "Use variable value class")],
+                help_text="Default: use the DataType send by the device<br>Variable value class: use the value class defined above",
+            ),
         ),
     ]

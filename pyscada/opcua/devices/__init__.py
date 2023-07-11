@@ -10,6 +10,7 @@ try:
     from asyncua.common.methods import uamethod, call_method_full
     from asyncua.common.ua_utils import *
     from concurrent.futures._base import TimeoutError
+
     try:
         from asyncio.exceptions import TimeoutError as asyncioTimeoutError
     except ModuleNotFoundError:
@@ -47,7 +48,11 @@ class GenericDevice(GenericHandlerDevice):
         result = True
 
         url = "opc."
-        url += str(self._device.opcuadevice.protocol_choices[self._device.opcuadevice.protocol][1])
+        url += str(
+            self._device.opcuadevice.protocol_choices[
+                self._device.opcuadevice.protocol
+            ][1]
+        )
         url += "://"
         url += str(self._device.opcuadevice.IP_address)
         url += ":"
@@ -73,16 +78,37 @@ class GenericDevice(GenericHandlerDevice):
             tree = []
             await self.browse_nodes(self.inst.nodes.objects, tree)
             await self.browse_nodes(self.inst.nodes.types, tree)
-            result = ''
+            result = ""
             for t in tree:
-                if t['cls'] == 'Method':
-                    result += str(t['name']) + '(' + str(t['cls']) + ') ns:' + str(t['ns']) + ' i:' + str(t['i']) + '\n'
-                elif t['type'] is not None:
-                    result += str(t['name']) + '(' + str(t['type']) + ') ns:' + str(t['ns']) + ' i:' + str(t['i']) + '\n'
-            self._device.opcuadevice.remote_devices_objects = \
-                str(result)[:OPCUADevice._meta.get_field('remote_devices_objects').max_length]
-            #logger.debug(self._device.opcuadevice.remote_devices_objects)
-            OPCUADevice.objects.bulk_update([self._device.opcuadevice], ['remote_devices_objects'])
+                if t["cls"] == "Method":
+                    result += (
+                        str(t["name"])
+                        + "("
+                        + str(t["cls"])
+                        + ") ns:"
+                        + str(t["ns"])
+                        + " i:"
+                        + str(t["i"])
+                        + "\n"
+                    )
+                elif t["type"] is not None:
+                    result += (
+                        str(t["name"])
+                        + "("
+                        + str(t["type"])
+                        + ") ns:"
+                        + str(t["ns"])
+                        + " i:"
+                        + str(t["i"])
+                        + "\n"
+                    )
+            self._device.opcuadevice.remote_devices_objects = str(result)[
+                : OPCUADevice._meta.get_field("remote_devices_objects").max_length
+            ]
+            # logger.debug(self._device.opcuadevice.remote_devices_objects)
+            OPCUADevice.objects.bulk_update(
+                [self._device.opcuadevice], ["remote_devices_objects"]
+            )
 
         self.accessibility()
 
@@ -90,7 +116,6 @@ class GenericDevice(GenericHandlerDevice):
 
     def disconnect(self):
         return async_to_sync(self._disconnect)()
-
 
     async def _disconnect(self):
         result = False
@@ -115,9 +140,9 @@ class GenericDevice(GenericHandlerDevice):
         try:
             value = await self.inst.get_node(ns_i).read_value()
         except (TimeoutError, asyncioTimeoutError):
-            logger.info('OPC-UA read value timeout')
+            logger.info("OPC-UA read value timeout")
         except ua.uaerrors._auto.BadAttributeIdInvalid:
-            #logger.debug('BadAttributeIdInvalid : %s' % variable)
+            # logger.debug('BadAttributeIdInvalid : %s' % variable)
             value = await self._call_method(variable, ns_i)
         except Exception as e:
             logger.info(e)
@@ -166,42 +191,54 @@ class GenericDevice(GenericHandlerDevice):
         return result
 
     async def _call_method(self, variable, ns_i, value=None):
-        args = variable.opcuavariable.opcuamethodargument_set.all().order_by('position')
+        args = variable.opcuavariable.opcuamethodargument_set.all().order_by("position")
         result = None
 
         try:
             node = self.inst.get_node(ns_i)
             inputs = await (await node.get_child("0:InputArguments")).read_value()
             if len(inputs) != len(args):
-                logger.debug("Bad method arguments quantity for : %s. Should be %s not %s."
-                             % (variable, len(inputs), len(args)))
+                logger.debug(
+                    "Bad method arguments quantity for : %s. Should be %s not %s."
+                    % (variable, len(inputs), len(args))
+                )
                 return None
             args_values = []
             for i in range(0, len(inputs)):
                 val = None
                 if args[i].data_type == 0:
-                    val = string_to_variant(str(args[i].value),
-                                            await data_type_to_variant_type(Node(node.server, inputs[i].DataType)))
+                    val = string_to_variant(
+                        str(args[i].value),
+                        await data_type_to_variant_type(
+                            Node(node.server, inputs[i].DataType)
+                        ),
+                    )
                 elif args[i].data_type == 1:
                     if value is None:
                         return None
                     try:
-                        val = string_to_variant(str(value), self.value_class_to_variant_type(variable.value_class))
+                        val = string_to_variant(
+                            str(value),
+                            self.value_class_to_variant_type(variable.value_class),
+                        )
                     except ValueError:
-                        val = string_to_variant(str(int(value)), self.value_class_to_variant_type(variable.value_class))
+                        val = string_to_variant(
+                            str(int(value)),
+                            self.value_class_to_variant_type(variable.value_class),
+                        )
                 if val is not None:
                     args_values.append(val)
             result = await call_method_full(await node.get_parent(), node, *args_values)
             if result.StatusCode.is_good():
-                if hasattr(result, 'OutputArguments') and len(result.OutputArguments):
+                if hasattr(result, "OutputArguments") and len(result.OutputArguments):
                     result = result.OutputArguments[0]
                 else:
                     result = value
 
         except (TimeoutError, asyncioTimeoutError):
-            logger.info('OPC-UA read value timeout')
+            logger.info("OPC-UA read value timeout")
         except ua.uaerrors._auto.BadAttributeIdInvalid:
-            logger.info('BadAttributeIdInvalid : %s' % variable)
+            logger.info("BadAttributeIdInvalid : %s" % variable)
             pass
         except Exception as e:
             logger.info(e)
@@ -213,10 +250,8 @@ class GenericDevice(GenericHandlerDevice):
         """
         node_class = await node.read_node_class()
         for child in await node.get_children():
-            #if await child.read_node_class() in [ua.NodeClass.Object, ua.NodeClass.Variable, ua.NodeClass.Method]:
-            tree.append(
-                await self.browse_nodes(child, tree)
-            )
+            # if await child.read_node_class() in [ua.NodeClass.Object, ua.NodeClass.Variable, ua.NodeClass.Method]:
+            tree.append(await self.browse_nodes(child, tree))
         value = None
         if node_class != ua.NodeClass.Variable:
             var_type = None
@@ -225,42 +260,42 @@ class GenericDevice(GenericHandlerDevice):
                 var_type = (await node.read_data_type_as_variant_type()).name
                 value = await node.read_value()
             except ua.UaError:
-                #logger.warning('Node Variable Type could not be determined for %r', node)
+                # logger.warning('Node Variable Type could not be determined for %r', node)
                 var_type = None
         d = {
-            'id': node.nodeid.to_string(),
-            'ns': node.nodeid.NamespaceIndex,
-            'i': node.nodeid.Identifier,
-            'name': (await node.read_display_name()).Text,
-            'cls': str(node_class.name),
-            'type': var_type,
-            'value': value,
+            "id": node.nodeid.to_string(),
+            "ns": node.nodeid.NamespaceIndex,
+            "i": node.nodeid.Identifier,
+            "name": (await node.read_display_name()).Text,
+            "cls": str(node_class.name),
+            "type": var_type,
+            "value": value,
         }
         return d
 
     def value_class_to_variant_type(self, class_str):
         VT = ua.VariantType
-        if class_str.upper() in ['FLOAT64', 'DOUBLE', 'FLOAT', 'LREAL', 'UNIXTIMEF64']:
+        if class_str.upper() in ["FLOAT64", "DOUBLE", "FLOAT", "LREAL", "UNIXTIMEF64"]:
             return VT.Float
-        if class_str.upper() in ['FLOAT32', 'SINGLE', 'REAL', 'UNIXTIMEF32']:
+        if class_str.upper() in ["FLOAT32", "SINGLE", "REAL", "UNIXTIMEF32"]:
             return VT.Float
-        if class_str.upper() in ['UINT64']:
+        if class_str.upper() in ["UINT64"]:
             return VT.UInt64
-        if class_str.upper() in ['INT64', 'UNIXTIMEI64']:
+        if class_str.upper() in ["INT64", "UNIXTIMEI64"]:
             return VT.Int64
-        if class_str.upper() in ['INT32']:
+        if class_str.upper() in ["INT32"]:
             return VT.Int32
-        if class_str.upper() in ['UINT32', 'DWORD', 'UNIXTIMEI32']:
+        if class_str.upper() in ["UINT32", "DWORD", "UNIXTIMEI32"]:
             return VT.UInt32
-        if class_str.upper() in ['INT16', 'INT']:
+        if class_str.upper() in ["INT16", "INT"]:
             return VT.Int16
-        if class_str.upper() in ['UINT', 'UINT16', 'WORD']:
+        if class_str.upper() in ["UINT", "UINT16", "WORD"]:
             return VT.UInt16
-        if class_str.upper() in ['INT8']:
+        if class_str.upper() in ["INT8"]:
             return VT.SByte
-        if class_str.upper() in ['UINT8', 'BYTE']:
+        if class_str.upper() in ["UINT8", "BYTE"]:
             return VT.Byte
-        if class_str.upper() in ['BOOL', 'BOOLEAN']:
+        if class_str.upper() in ["BOOL", "BOOLEAN"]:
             return VT.Boolean
         else:
             return VT.Variant

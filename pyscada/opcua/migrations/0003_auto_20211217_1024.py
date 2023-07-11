@@ -5,15 +5,19 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('opcua', '0002_add_device_protocol'),
+        ("opcua", "0002_add_device_protocol"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='opcuadevice',
-            name='instrument_handler',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='pyscada.DeviceHandler'),
+            model_name="opcuadevice",
+            name="instrument_handler",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="pyscada.DeviceHandler",
+            ),
         ),
     ]

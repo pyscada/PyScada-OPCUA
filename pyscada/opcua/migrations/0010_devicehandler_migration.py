@@ -16,16 +16,17 @@ def move_device_handlers(apps, schema_editor):
         item.opcua_device.save()
         count += 1
 
-    logger.info('moved %d OPC-UA Handler\n' % count)
+    logger.info("moved %d OPC-UA Handler\n" % count)
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('opcua', '0009_auto_20220119_0904'),
-        ('pyscada', '0100_device_instrument_handler')
+        ("opcua", "0009_auto_20220119_0904"),
+        ("pyscada", "0100_device_instrument_handler"),
     ]
 
     operations = [
-        migrations.RunPython(move_device_handlers, reverse_code=migrations.RunPython.noop),
+        migrations.RunPython(
+            move_device_handlers, reverse_code=migrations.RunPython.noop
+        ),
     ]

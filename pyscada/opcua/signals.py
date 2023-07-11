@@ -2,7 +2,12 @@
 from __future__ import unicode_literals
 
 from pyscada.models import Device, Variable
-from pyscada.opcua.models import OPCUADevice, OPCUAVariable, ExtendedOPCUAVariable, ExtendedOPCUADevice
+from pyscada.opcua.models import (
+    OPCUADevice,
+    OPCUAVariable,
+    ExtendedOPCUAVariable,
+    ExtendedOPCUADevice,
+)
 
 from django.dispatch import receiver
 from django.db.models.signals import post_save
@@ -25,6 +30,10 @@ def _reinit_daq_daemons(sender, instance, **kwargs):
     elif type(instance) is OPCUAVariable:
         post_save.send_robust(sender=Variable, instance=instance.opcua_variable)
     elif type(instance) is ExtendedOPCUAVariable:
-        post_save.send_robust(sender=Variable, instance=Variable.objects.get(pk=instance.pk))
+        post_save.send_robust(
+            sender=Variable, instance=Variable.objects.get(pk=instance.pk)
+        )
     elif type(instance) is ExtendedOPCUADevice:
-        post_save.send_robust(sender=Device, instance=Device.objects.get(pk=instance.pk))
+        post_save.send_robust(
+            sender=Device, instance=Device.objects.get(pk=instance.pk)
+        )

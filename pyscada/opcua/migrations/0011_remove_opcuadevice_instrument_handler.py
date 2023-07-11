@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('opcua', '0010_devicehandler_migration'),
+        ("opcua", "0010_devicehandler_migration"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='opcuadevice',
-            name='instrument_handler',
+            model_name="opcuadevice",
+            name="instrument_handler",
         ),
     ]

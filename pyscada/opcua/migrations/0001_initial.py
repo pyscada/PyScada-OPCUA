@@ -5,71 +5,156 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('pyscada', '0096_auto_20211210_0924'),
+        ("pyscada", "0096_auto_20211210_0924"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ExtendedOPCUADevice',
-            fields=[
-            ],
+            name="ExtendedOPCUADevice",
+            fields=[],
             options={
-                'verbose_name': 'OPCUA Device',
-                'verbose_name_plural': 'OPCUA Devices',
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "OPCUA Device",
+                "verbose_name_plural": "OPCUA Devices",
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('pyscada.device',),
+            bases=("pyscada.device",),
         ),
         migrations.CreateModel(
-            name='ExtendedOPCUAVariable',
-            fields=[
-            ],
+            name="ExtendedOPCUAVariable",
+            fields=[],
             options={
-                'verbose_name': 'OPCUA Variable',
-                'verbose_name_plural': 'OPCUA Variables',
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "OPCUA Variable",
+                "verbose_name_plural": "OPCUA Variables",
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('pyscada.variable',),
+            bases=("pyscada.variable",),
         ),
         migrations.CreateModel(
-            name='OPCUAVariable',
+            name="OPCUAVariable",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('NamespaceIndex', models.PositiveSmallIntegerField(default=0, help_text='"ns" value used in asyncua library')),
-                ('Identifier', models.PositiveSmallIntegerField(default=0, help_text='"i" value used in asyncua library')),
-                ('opcua_variable', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='pyscada.Variable')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "NamespaceIndex",
+                    models.PositiveSmallIntegerField(
+                        default=0, help_text='"ns" value used in asyncua library'
+                    ),
+                ),
+                (
+                    "Identifier",
+                    models.PositiveSmallIntegerField(
+                        default=0, help_text='"i" value used in asyncua library'
+                    ),
+                ),
+                (
+                    "opcua_variable",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="pyscada.Variable",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='OPCUAMethodArgument',
+            name="OPCUAMethodArgument",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('position', models.PositiveSmallIntegerField(default=0, help_text='Position in call method')),
-                ('data_type', models.PositiveSmallIntegerField(choices=[(0, 'Default'), (1, 'Use variable value class')], default=0, help_text='Default: use the DataType send by the device<br>Variable value class: use the value class defined above')),
-                ('value', models.CharField(default='', max_length=254)),
-                ('opcua_method', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='opcua.OPCUAVariable')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "position",
+                    models.PositiveSmallIntegerField(
+                        default=0, help_text="Position in call method"
+                    ),
+                ),
+                (
+                    "data_type",
+                    models.PositiveSmallIntegerField(
+                        choices=[(0, "Default"), (1, "Use variable value class")],
+                        default=0,
+                        help_text="Default: use the DataType send by the device<br>Variable value class: use the value class defined above",
+                    ),
+                ),
+                ("value", models.CharField(default="", max_length=254)),
+                (
+                    "opcua_method",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="opcua.OPCUAVariable",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='OPCUADevice',
+            name="OPCUADevice",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('protocol', models.PositiveSmallIntegerField(choices=[(0, 'tcp')], default=0)),
-                ('IP_address', models.GenericIPAddressField(help_text='Example: 192.168.0.234')),
-                ('port', models.PositiveSmallIntegerField(default=4840)),
-                ('path', models.CharField(default='/', help_text='Example: /hbk/clipx', max_length=254)),
-                ('user', models.CharField(default='user', max_length=254)),
-                ('password', models.CharField(default='password', max_length=254)),
-                ('instrument_handler', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='pyscada.DeviceHandler')),
-                ('opcua_device', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='pyscada.Device')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "protocol",
+                    models.PositiveSmallIntegerField(choices=[(0, "tcp")], default=0),
+                ),
+                (
+                    "IP_address",
+                    models.GenericIPAddressField(help_text="Example: 192.168.0.234"),
+                ),
+                ("port", models.PositiveSmallIntegerField(default=4840)),
+                (
+                    "path",
+                    models.CharField(
+                        default="/", help_text="Example: /hbk/clipx", max_length=254
+                    ),
+                ),
+                ("user", models.CharField(default="user", max_length=254)),
+                ("password", models.CharField(default="password", max_length=254)),
+                (
+                    "instrument_handler",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="pyscada.DeviceHandler",
+                    ),
+                ),
+                (
+                    "opcua_device",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="pyscada.Device",
+                    ),
+                ),
             ],
         ),
     ]

@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('opcua', '0006_auto_20211217_1406'),
+        ("opcua", "0006_auto_20211217_1406"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='opcuamethodargument',
-            name='value',
-            field=models.CharField(blank=True, default='', max_length=254),
+            model_name="opcuamethodargument",
+            name="value",
+            field=models.CharField(blank=True, default="", max_length=254),
         ),
     ]

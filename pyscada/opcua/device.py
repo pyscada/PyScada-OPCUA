@@ -12,9 +12,10 @@ logger = logging.getLogger(__name__)
 
 try:
     import asyncua
+
     driver_ok = True
 except ImportError:
-    logger.info('Cannot import smbus')
+    logger.info("Cannot import smbus")
     driver_ok = False
 
 
@@ -29,6 +30,6 @@ class Device(GenericDevice):
         super().__init__(device)
 
         for var in self.device.variable_set.filter(active=1):
-            if not hasattr(var, 'opcuavariable'):
+            if not hasattr(var, "opcuavariable"):
                 continue
             self.variables[var.pk] = var
