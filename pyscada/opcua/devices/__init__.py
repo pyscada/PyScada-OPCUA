@@ -160,8 +160,8 @@ class GenericDevice(GenericHandlerDevice):
             for item in variables_dict.values():
                 value, read_time = self.read_data_and_time(item)
 
-                if value is not None and item.update_value(value, read_time):
-                    output.append(item.create_recorded_data_element())
+                if value is not None and item.update_values([value], [read_time]):
+                    output.append(item)
             self.after_read()
 
         await self._disconnect()
