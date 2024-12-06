@@ -36,9 +36,23 @@ class GenericDevice(GenericHandlerDevice):
         self._protocol = PROTOCOL_ID
         self.driver_ok = driver_ok
         self.is_connected = 0
+        self.url = ""
 
     def connect(self):
         super().connect()
+        
+        self.url = "opc."
+        self.url += str(
+            self._device.opcuadevice.protocol_choices[
+                self._device.opcuadevice.protocol
+            ][1]
+        )
+        self.url += "://"
+        self.url += str(self._device.opcuadevice.IP_address)
+        self.url += ":"
+        self.url += str(self._device.opcuadevice.port)
+        self.url += str(self._device.opcuadevice.path)
+
         return async_to_sync(self._connect)()
 
     async def _connect(self):
@@ -47,19 +61,7 @@ class GenericDevice(GenericHandlerDevice):
         """
         result = True
 
-        url = "opc."
-        url += str(
-            self._device.opcuadevice.protocol_choices[
-                self._device.opcuadevice.protocol
-            ][1]
-        )
-        url += "://"
-        url += str(self._device.opcuadevice.IP_address)
-        url += ":"
-        url += str(self._device.opcuadevice.port)
-        url += str(self._device.opcuadevice.path)
-
-        self.inst = Client(url=url, timeout=10)
+        self.inst = Client(url=self.url, timeout=10)
         self.inst.set_user(str(self._device.opcuadevice.user))
         self.inst.set_password(str(self._device.opcuadevice.password))
 
