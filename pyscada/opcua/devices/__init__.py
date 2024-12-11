@@ -13,9 +13,11 @@ try:
 
     try:
         from asyncio.exceptions import TimeoutError as asyncioTimeoutError
+        from asyncio.exceptions import CancelledError
     except ModuleNotFoundError:
         # for python version < 3.8
         from asyncio import TimeoutError as asyncioTimeoutError
+        from asyncio import CancelledError
     driver_ok = True
 except ImportError:
     # asyncua = None
@@ -70,6 +72,10 @@ class GenericDevice(GenericHandlerDevice):
         except (TimeoutError, asyncioTimeoutError):
             result = False
             self._not_accessible_reason = f"Timeout connecting to {self._device}"
+            await self._disconnect()
+        except CancelledError:
+            result = False
+            self._not_accessible_reason = f"Cancelled while connecting to {self._device}"
             await self._disconnect()
         except OSError:
             result = False
@@ -142,7 +148,9 @@ class GenericDevice(GenericHandlerDevice):
         try:
             value = await self.inst.get_node(ns_i).read_value()
         except (TimeoutError, asyncioTimeoutError):
-            logger.info("OPC-UA read value timeout")
+            logger.info(f"OPC-UA read value timeout for {ns_i}")
+        except CancelledError:
+            logger.info(f"OPC-UA read value cancelled for {ns_i}")
         except ua.uaerrors._auto.BadAttributeIdInvalid:
             # logger.debug('BadAttributeIdInvalid : %s' % variable)
             value = await self._call_method(variable, ns_i)
@@ -238,7 +246,9 @@ class GenericDevice(GenericHandlerDevice):
                     result = value
 
         except (TimeoutError, asyncioTimeoutError):
-            logger.info("OPC-UA read value timeout")
+            logger.info(f"OPC-UA read value timeout for {ns_i}")
+        except CancelledError:
+            logger.info(f"OPC-UA read value cancelled for {ns_i}")
         except ua.uaerrors._auto.BadAttributeIdInvalid:
             logger.info("BadAttributeIdInvalid : %s" % variable)
             pass
