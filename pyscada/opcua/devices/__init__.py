@@ -114,7 +114,7 @@ class GenericDevice(GenericHandlerDevice):
                 : OPCUADevice._meta.get_field("remote_devices_objects").max_length
             ]
             # logger.debug(self._device.opcuadevice.remote_devices_objects)
-            OPCUADevice.objects.bulk_update(
+            OPCUADevice.objects.abulk_update(
                 [self._device.opcuadevice], ["remote_devices_objects"]
             )
 
