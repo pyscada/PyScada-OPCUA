@@ -27,8 +27,10 @@ class OPCUADevice(models.Model):
     path = models.CharField(
         default="/", max_length=254, help_text="Example: /hbk/clipx"
     )
-    user = models.CharField(default="user", max_length=254)
-    password = models.CharField(default="password", max_length=254)
+    user = models.CharField(default="user", null=True, blank=True, max_length=254)
+    password = models.CharField(
+        default="password", null=True, blank=True, max_length=254
+    )
 
     remote_devices_objects = models.CharField(
         default="",

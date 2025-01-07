@@ -38,11 +38,10 @@ class GenericDevice(GenericHandlerDevice):
         self._protocol = PROTOCOL_ID
         self.driver_ok = driver_ok
         self.is_connected = 0
-        self.url = ""
+        self.inst = None
+        self.set_url()
 
-    def connect(self):
-        super().connect()
-        
+    def set_url(self):
         self.url = "opc."
         self.url += str(
             self._device.opcuadevice.protocol_choices[
@@ -55,41 +54,45 @@ class GenericDevice(GenericHandlerDevice):
         self.url += str(self._device.opcuadevice.port)
         self.url += str(self._device.opcuadevice.path)
 
-        return async_to_sync(self._connect)()
-
-    async def _connect(self):
+    async def aconnect(self):
         """
         establish a connection to the Instrument
         """
         result = True
+        if not self.connect():
+            return False
 
         self.inst = Client(url=self.url, timeout=10)
-        self.inst.set_user(str(self._device.opcuadevice.user))
-        self.inst.set_password(str(self._device.opcuadevice.password))
+        if self._device.opcuadevice.user is not None:
+            self.inst.set_user(str(self._device.opcuadevice.user))
+            if self._device.opcuadevice.password is not None:
+                self.inst.set_password(str(self._device.opcuadevice.password))
 
         try:
             await self.inst.connect()
         except (TimeoutError, asyncioTimeoutError):
             result = False
             self._not_accessible_reason = f"Timeout connecting to {self._device}"
-            await self._disconnect()
+            await self.adisconnect()
         except CancelledError:
             result = False
-            self._not_accessible_reason = f"Cancelled while connecting to {self._device}"
-            await self._disconnect()
+            self._not_accessible_reason = (
+                f"Cancelled while connecting to {self._device}"
+            )
+            await self.adisconnect()
         except OSError:
             result = False
             self._not_accessible_reason = f"Connect call to {self._device} failed"
-            await self._disconnect()
+            await self.adisconnect()
 
         if self._device_not_accessible > 0:
             tree = []
-            await self.browse_nodes(self.inst.nodes.objects, tree)
-            await self.browse_nodes(self.inst.nodes.types, tree)
-            result = ""
+            # await self.browse_nodes(self.inst.nodes.objects, tree)
+            # await self.browse_nodes(self.inst.nodes.types, tree)
+            tree_str = ""
             for t in tree:
                 if t["cls"] == "Method":
-                    result += (
+                    tree_str += (
                         str(t["name"])
                         + "("
                         + str(t["cls"])
@@ -100,7 +103,7 @@ class GenericDevice(GenericHandlerDevice):
                         + "\n"
                     )
                 elif t["type"] is not None:
-                    result += (
+                    tree_str += (
                         str(t["name"])
                         + "("
                         + str(t["type"])
@@ -110,7 +113,7 @@ class GenericDevice(GenericHandlerDevice):
                         + str(t["i"])
                         + "\n"
                     )
-            self._device.opcuadevice.remote_devices_objects = str(result)[
+            self._device.opcuadevice.remote_devices_objects = str(tree_str)[
                 : OPCUADevice._meta.get_field("remote_devices_objects").max_length
             ]
             # logger.debug(self._device.opcuadevice.remote_devices_objects)
@@ -122,95 +125,106 @@ class GenericDevice(GenericHandlerDevice):
 
         return result
 
-    def disconnect(self):
-        return async_to_sync(self._disconnect)()
-
-    async def _disconnect(self):
+    async def adisconnect(self):
         result = False
-        if self.inst is not None and hasattr(self.inst, "disctonnect"):
+        if self.inst is not None and hasattr(self.inst, "disconnect"):
             await self.inst.disconnect()
             result = True
         self.inst = None
         return result
 
-    def read_data(self, variable):
-        return async_to_sync(self._read_data)(variable)
+    def read_data_all(self, variables_dict, erase_cache=False):
+        return async_to_sync(self.aread_data_all)(variables_dict, erase_cache)
 
-    async def _read_data(self, variable):
-        if self._device_not_accessible < 1:
-            return None
-        ns_i = "ns="
-        ns_i += str(variable.opcuavariable.NamespaceIndex)
-        ns_i += ";i="
-        ns_i += str(variable.opcuavariable.Identifier)
-
-        value = None
-        try:
-            value = await self.inst.get_node(ns_i).read_value()
-        except (TimeoutError, asyncioTimeoutError):
-            logger.info(f"OPC-UA read value timeout for {ns_i}")
-        except CancelledError:
-            logger.info(f"OPC-UA read value cancelled for {ns_i}")
-        except ua.uaerrors._auto.BadAttributeIdInvalid:
-            # logger.debug('BadAttributeIdInvalid : %s' % variable)
-            value = await self._call_method(variable, ns_i)
-        except Exception as e:
-            logger.info(e)
-        return value
-
-    def read_all_data(self, variables):
-        return async_to_sync(self._read_all_data)(variables)
-
-    async def _read_all_data(self, variables_dict):
+    async def aread_data_all(self, variables_dict, erase_cache=False):
         output = []
 
-        if await self._connect():
-            self.accessibility()
-            self.before_read()
+        if await self.abefore_read():
             for item in variables_dict.values():
-                value, read_time = self.read_data_and_time(item)
-
-                if value is not None and item.update_values([value], [read_time]):
-                    output.append(item)
-            self.after_read()
-
-        await self._disconnect()
+                if item.readable:
+                    value, read_time = await self.aread_data_and_time(item)
+                    if (
+                        value is not None
+                        and read_time is not None
+                        and item.update_values(
+                            value, read_time, erase_cache=erase_cache
+                        )
+                    ):
+                        output.append(item)
+        await self.aafter_read()
         return output
+
+    async def abefore_read(self):
+        return await self.aconnect()
+
+    async def aafter_read(self):
+        """
+        will be called after the last read_data
+        """
+        return await self.adisconnect()
+
+    async def aread_data_and_time(self, variable_instance):
+        """
+        read values and timestamps from the device
+        """
+
+        return await self.aread_data(variable_instance), await self.atime()
+
+    async def atime(self):
+        return self.time()
+
+    async def aread_data(self, variable):
+        value = None
+        try:
+            node = self.inst.get_node(
+                ua.NodeId(
+                    variable.opcuavariable.Identifier,
+                    variable.opcuavariable.NamespaceIndex,
+                )
+            )
+            value = await node.read_value()
+        except (TimeoutError, asyncioTimeoutError):
+            logger.info(f"OPC-UA read value timeout for {self.ns_i}")
+        except CancelledError:
+            logger.info(f"OPC-UA read value cancelled for {self.ns_i}")
+        except ua.uaerrors._auto.BadAttributeIdInvalid:
+            # logger.debug('BadAttributeIdInvalid : %s' % variable)
+            value = await self._call_method(variable)
+        except Exception as e:
+            logger.info(e)
+
+        return value
 
     def write_data(self, variable_id, value, task):
         """
         write values to the device
         """
-        return async_to_sync(self._write_data)(variable_id, value, task)
+        return async_to_sync(self.awrite_data)(variable_id, value, task)
 
-    async def _write_data(self, variable_id, value, task):
+    async def awrite_data(self, variable_id, value, task):
         result = None
 
-        if await self._connect():
-            self.accessibility()
+        variable = Variable.objects.get(id=variable_id)
 
-            variable = Variable.objects.get(id=variable_id)
-            ns_i = "ns="
-            ns_i += str(variable.opcuavariable.NamespaceIndex)
-            ns_i += ";i="
-            ns_i += str(variable.opcuavariable.Identifier)
-
-            result = await self._call_method(variable, ns_i, value)
-            await self._disconnect()
+        if await self.aconnect():
+            result = await self._call_method(variable, value)
+        await self.adisconnect()
 
         return result
 
-    async def _call_method(self, variable, ns_i, value=None):
+    async def _call_method(self, variable, value=None):
         args = variable.opcuavariable.opcuamethodargument_set.all().order_by("position")
         result = None
 
         try:
+            ns_i = ua.NodeId(
+                variable.opcuavariable.Identifier, variable.opcuavariable.NamespaceIndex
+            )
             node = self.inst.get_node(ns_i)
             inputs = await (await node.get_child("0:InputArguments")).read_value()
             if len(inputs) != len(args):
                 logger.debug(
-                    "Bad method arguments quantity for : %s. Should be %s not %s."
-                    % (variable, len(inputs), len(args))
+                    f"Bad method arguments quantity for : {variable}. Should be {len(inputs)} not {len(args)}."
                 )
                 return None
             args_values = []
@@ -250,7 +264,7 @@ class GenericDevice(GenericHandlerDevice):
         except CancelledError:
             logger.info(f"OPC-UA read value cancelled for {ns_i}")
         except ua.uaerrors._auto.BadAttributeIdInvalid:
-            logger.info("BadAttributeIdInvalid : %s" % variable)
+            logger.info(f"BadAttributeIdInvalid : {variable}")
             pass
         except Exception as e:
             logger.info(e)
